@@ -3,7 +3,8 @@ import re
 import logging
 import pymssql
 from typing import List, Any
-from fastmcp import FastMCP, ToolError, Context
+from fastmcp import FastMCP, Context
+from fastmcp.exceptions import ToolError
 from pydantic import BaseModel
 
 # Configure logging
