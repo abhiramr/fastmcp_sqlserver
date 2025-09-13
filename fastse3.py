@@ -309,6 +309,16 @@ class QueryInput(BaseModel):
     query: str = Field(..., description="SQL query to execute")
     limit: Optional[int] = Field(default=100, ge=1, le=10000, description="Maximum number of rows to return")
 
+    @model_validator(mode='before')
+        @classmethod
+        def convert_str_to_dict(cls, data: Any) -> Any:
+            """Allow the tool to accept a raw string as input."""
+            if isinstance(data, str):
+                # If the input is a string, wrap it in a dict
+                return {'query': data}
+            # Otherwise, return the data as is (assuming it's already a dict)
+            return data
+
 
 @mcp.tool()
 def execute_query(ctx: Context, input: QueryInput) -> Dict[str, Any]:
