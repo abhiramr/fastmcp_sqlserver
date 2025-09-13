@@ -117,34 +117,47 @@ class QueryInput(BaseModel):
 
 @mcp.tool()
 def execute_query(ctx: Context, input: Any) -> Dict[str, Any]:
-    """Tool to execute a read-only SELECT query safely."""
+    """Tool to execute a read-only SELECT query safely, only with passcode."""
     try:
-        # --- MANUAL OVERRIDE ---
-        # Manually trigger our Pydantic model to validate and normalize the input.
-        # This bypasses the framework's incorrect initial check.
+        # Validate input via Pydantic
         validated_input = QueryInput.model_validate(input)
 
-        # The rest of the function logic now uses the validated_input object
+        # Check the passcode
+        if validated_input.passcode != "devi22":
+            raise ToolError("Invalid passcode.")
+
         query = sanitize_sql_query(validated_input.query)
-        
+
         if not query.upper().strip().startswith('SELECT'):
             raise ToolError("Only SELECT queries are allowed")
-        
+
         with get_db_connection() as conn:
             cursor = conn.cursor(as_dict=True)
+            # Add TOP or LIMIT if not present
             if 'TOP' not in query.upper() and 'LIMIT' not in query.upper():
                 query = re.sub(r'^\s*SELECT\s+', f'SELECT TOP {validated_input.limit} ', query, flags=re.IGNORECASE)
-            
+
             logger.info(f"Executing query: {query}")
             cursor.execute(query)
-            data = [{k: str(v) if v is not None else None for k, v in row.items()} for row in cursor.fetchall()]
+            data = [
+                {k: str(v) if v is not None else None for k, v in row.items()}
+                for row in cursor.fetchall()
+            ]
             columns = list(data[0].keys()) if data else []
-            return {"status": "success", "columns": columns, "row_count": len(data), "data": data, "query_executed": query}
-            
+            return {
+                "status": "success",
+                "columns": columns,
+                "row_count": len(data),
+                "data": data,
+                "query_executed": query
+            }
+
     except ValueError as ve:
         raise ToolError(str(ve))
+    except ToolError:
+        raise  # re-raise passcode or SELECT restrictions
     except Exception as e:
-        logger.error(f"Error executing query: {e}")
+        logger.error(f"Error executing query: {e}", exc_info=True)
         raise ToolError(f"Query execution failed: {e}")
 
 
