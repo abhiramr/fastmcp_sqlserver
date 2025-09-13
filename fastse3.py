@@ -311,12 +311,24 @@ class QueryInput(BaseModel):
 
     @model_validator(mode='before')
     @classmethod
-    def convert_str_to_dict(cls, data: Any) -> Any:
-        """Allow the tool to accept a raw string as input."""
+    def normalize_input(cls, data: Any) -> Any:
+        """
+        A robust validator that accepts three common input formats:
+        1. A raw string: "SELECT * FROM ..."
+        2. The correct object: {"query": "SELECT * FROM ..."}
+        3. A LangChain default object: {"input": "SELECT * FROM ..."}
+        """
+        # Case 1: Input is a raw string
         if isinstance(data, str):
-            # If the input is a string, wrap it in a dict
             return {'query': data}
-        # Otherwise, return the data as is (assuming it's already a dict)
+        
+        # Case 2: Input is a dict with the 'input' key (from LangChain)
+        if isinstance(data, dict) and 'input' in data and 'query' not in data:
+            # Remap the 'input' key to the 'query' key
+            data['query'] = data.pop('input')
+            return data
+            
+        # Case 3: Input is already in the correct format or is invalid
         return data
 
 
