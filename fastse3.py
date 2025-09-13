@@ -447,7 +447,8 @@ def test_connection(ctx: Context) -> Dict[str, Any]:
         config = get_db_config()
         with get_db_connection(config) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT 1 test_value, GETDATE() current_time")
+            # Aliases are now escaped with square brackets
+            cursor.execute("SELECT 1 [test_value], GETDATE() [current_time]")
             result = cursor.fetchone()
             
             return {
