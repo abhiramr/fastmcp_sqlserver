@@ -103,6 +103,8 @@ mcp = FastMCP("mssql_fastmcp_server")
 class QueryInput(BaseModel):
     query: str = Field(..., description="SQL query to execute")
     limit: Optional[int] = Field(default=100, ge=1, le=10000)
+    passcode: str
+
 
     @model_validator(mode='before')
     @classmethod
