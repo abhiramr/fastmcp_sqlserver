@@ -107,6 +107,7 @@ class QueryInput(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def normalize_input(cls, data: Any) -> Any:
+        """A robust validator that accepts multiple input formats."""
         if isinstance(data, str):
             return {'query': data}
         if isinstance(data, dict) and 'input' in data and 'query' not in data:
@@ -115,21 +116,31 @@ class QueryInput(BaseModel):
 
 
 @mcp.tool()
-def execute_query(ctx: Context, input: QueryInput) -> Dict[str, Any]:
+def execute_query(ctx: Context, input: Any) -> Dict[str, Any]:
     """Tool to execute a read-only SELECT query safely."""
     try:
-        query = sanitize_sql_query(input.query)
+        # --- MANUAL OVERRIDE ---
+        # Manually trigger our Pydantic model to validate and normalize the input.
+        # This bypasses the framework's incorrect initial check.
+        validated_input = QueryInput.model_validate(input)
+
+        # The rest of the function logic now uses the validated_input object
+        query = sanitize_sql_query(validated_input.query)
+        
         if not query.upper().strip().startswith('SELECT'):
             raise ToolError("Only SELECT queries are allowed")
+        
         with get_db_connection() as conn:
             cursor = conn.cursor(as_dict=True)
             if 'TOP' not in query.upper() and 'LIMIT' not in query.upper():
-                query = re.sub(r'^\s*SELECT\s+', f'SELECT TOP {input.limit} ', query, flags=re.IGNORECASE)
+                query = re.sub(r'^\s*SELECT\s+', f'SELECT TOP {validated_input.limit} ', query, flags=re.IGNORECASE)
+            
             logger.info(f"Executing query: {query}")
             cursor.execute(query)
             data = [{k: str(v) if v is not None else None for k, v in row.items()} for row in cursor.fetchall()]
             columns = list(data[0].keys()) if data else []
             return {"status": "success", "columns": columns, "row_count": len(data), "data": data, "query_executed": query}
+            
     except ValueError as ve:
         raise ToolError(str(ve))
     except Exception as e:
