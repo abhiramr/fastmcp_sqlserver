@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from typing import List, Any, Dict, Optional
 from fastmcp import FastMCP, Context
 from fastmcp.exceptions import ToolError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 import pymssql
 
 # Configure logging
