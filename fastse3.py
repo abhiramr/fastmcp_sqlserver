@@ -377,10 +377,30 @@ def execute_query(ctx: Context, input: QueryInput) -> Dict[str, Any]:
 
 
 class TableInput(BaseModel):
-    table_name: str = Field(..., description="Name of the table to query")
-    columns: Optional[List[str]] = Field(default=None, description="Specific columns to select")
-    where_clause: Optional[str] = Field(default=None, description="WHERE clause conditions")
-    limit: Optional[int] = Field(default=100, ge=1, le=10000, description="Maximum number of rows to return")
+    table_name: str = Field(..., description="Name of the table to query, including schema if needed (e.g., 'dbo.Customers')")
+    columns: Optional[List[str]] = Field(default=None, description="Specific columns to select. Defaults to all ('*').")
+    where_clause: Optional[str] = Field(default=None, description="SQL WHERE clause conditions (without the 'WHERE' keyword).")
+    limit: Optional[int] = Field(default=100, ge=1, le=10000, description="Maximum number of rows to return.")
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_input(cls, data: Any) -> Any:
+        """
+        A robust validator that accepts multiple input formats:
+        1. A raw string: "DefaultSystemSettings"
+        2. A LangChain default object: {"input": "DefaultSystemSettings"}
+        """
+        # Case 1: Input is a raw string, assume it's the table name
+        if isinstance(data, str):
+            return {'table_name': data}
+            
+        # Case 2: Input is a dict with 'input' key (from LangChain)
+        if isinstance(data, dict) and 'input' in data and 'table_name' not in data:
+            data['table_name'] = data.pop('input')
+            return data
+            
+        # Case 3: Input is already in the correct format or is invalid
+        return data
 
 
 @mcp.tool()
