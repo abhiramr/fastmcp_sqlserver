@@ -463,7 +463,7 @@ if __name__ == "__main__":
         # Test configuration on startup
         config = get_db_config()
         logger.info(f"Configuration loaded successfully for server: {config.server}/{config.database}")
-        mcp.run()
+        mcp.run(transport="http",host="0.0.0.0",port=8000)
     except Exception as e:
         logger.error(f"Failed to start server: {e}")
         raise
