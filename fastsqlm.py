@@ -161,7 +161,7 @@ if __name__ == "__main__":
         logger.info("Starting MSSQL FastMCP Server...")
         config = get_db_config()
         logger.info(f"Configuration loaded for {config.server}/{config.database}")
-        mcp.run()
+        mcp.run(transport="http",host="0.0.0.0",port=8000)
     except Exception as e:
         logger.error(f"FATAL: Failed to start server: {e}")
         exit(1)
