@@ -376,88 +376,88 @@ def execute_query(ctx: Context, input: QueryInput) -> Dict[str, Any]:
         raise ToolError(f"Query execution failed: {e}")
 
 
-class TableInput(BaseModel):
-    table_name: str = Field(..., description="Name of the table to query, including schema if needed (e.g., 'dbo.Customers')")
-    columns: Optional[List[str]] = Field(default=None, description="Specific columns to select. Defaults to all ('*').")
-    where_clause: Optional[str] = Field(default=None, description="SQL WHERE clause conditions (without the 'WHERE' keyword).")
-    limit: Optional[int] = Field(default=100, ge=1, le=10000, description="Maximum number of rows to return.")
+# class TableInput(BaseModel):
+#     table_name: str = Field(..., description="Name of the table to query, including schema if needed (e.g., 'dbo.Customers')")
+#     columns: Optional[List[str]] = Field(default=None, description="Specific columns to select. Defaults to all ('*').")
+#     where_clause: Optional[str] = Field(default=None, description="SQL WHERE clause conditions (without the 'WHERE' keyword).")
+#     limit: Optional[int] = Field(default=100, ge=1, le=10000, description="Maximum number of rows to return.")
 
-    @model_validator(mode='before')
-    @classmethod
-    def normalize_input(cls, data: Any) -> Any:
-        """
-        A robust validator that accepts multiple input formats:
-        1. A raw string: "DefaultSystemSettings"
-        2. A LangChain default object: {"input": "DefaultSystemSettings"}
-        """
-        # Case 1: Input is a raw string, assume it's the table name
-        if isinstance(data, str):
-            return {'table_name': data}
+#     @model_validator(mode='before')
+#     @classmethod
+#     def normalize_input(cls, data: Any) -> Any:
+#         """
+#         A robust validator that accepts multiple input formats:
+#         1. A raw string: "DefaultSystemSettings"
+#         2. A LangChain default object: {"input": "DefaultSystemSettings"}
+#         """
+#         # Case 1: Input is a raw string, assume it's the table name
+#         if isinstance(data, str):
+#             return {'table_name': data}
             
-        # Case 2: Input is a dict with 'input' key (from LangChain)
-        if isinstance(data, dict) and 'input' in data and 'table_name' not in data:
-            data['table_name'] = data.pop('input')
-            return data
+#         # Case 2: Input is a dict with 'input' key (from LangChain)
+#         if isinstance(data, dict) and 'input' in data and 'table_name' not in data:
+#             data['table_name'] = data.pop('input')
+#             return data
             
-        # Case 3: Input is already in the correct format or is invalid
-        return data
+#         # Case 3: Input is already in the correct format or is invalid
+#         return data
 
 
-@mcp.tool()
-def query_table(ctx: Context, input: TableInput) -> Dict[str, Any]:
-    """Tool to query a specific table with optional filtering."""
-    try:
-        safe_table = validate_table_name(input.table_name)
+# @mcp.tool()
+# def query_table(ctx: Context, input: TableInput) -> Dict[str, Any]:
+#     """Tool to query a specific table with optional filtering."""
+#     try:
+#         safe_table = validate_table_name(input.table_name)
         
-        # Build SELECT clause
-        if input.columns:
-            # Validate column names
-            safe_columns = []
-            for col in input.columns:
-                if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', col):
-                    raise ValueError(f"Invalid column name: {col}")
-                safe_columns.append(f"[{col}]")
-            columns_str = ", ".join(safe_columns)
-        else:
-            columns_str = "*"
+#         # Build SELECT clause
+#         if input.columns:
+#             # Validate column names
+#             safe_columns = []
+#             for col in input.columns:
+#                 if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', col):
+#                     raise ValueError(f"Invalid column name: {col}")
+#                 safe_columns.append(f"[{col}]")
+#             columns_str = ", ".join(safe_columns)
+#         else:
+#             columns_str = "*"
         
-        # Build query
-        query = f"SELECT TOP {input.limit} {columns_str} FROM {safe_table}"
+#         # Build query
+#         query = f"SELECT TOP {input.limit} {columns_str} FROM {safe_table}"
         
-        if input.where_clause:
-            # Basic validation of WHERE clause
-            where_clause = input.where_clause.strip()
-            if where_clause.upper().startswith('WHERE'):
-                where_clause = where_clause[5:].strip()
-            query += f" WHERE {where_clause}"
+#         if input.where_clause:
+#             # Basic validation of WHERE clause
+#             where_clause = input.where_clause.strip()
+#             if where_clause.upper().startswith('WHERE'):
+#                 where_clause = where_clause[5:].strip()
+#             query += f" WHERE {where_clause}"
         
-        with get_db_connection() as conn:
-            cursor = conn.cursor()
-            logger.info(f"Executing table query: {query}")
-            cursor.execute(query)
+#         with get_db_connection() as conn:
+#             cursor = conn.cursor()
+#             logger.info(f"Executing table query: {query}")
+#             cursor.execute(query)
             
-            columns = [desc[0] for desc in cursor.description]
-            rows = cursor.fetchall()
+#             columns = [desc[0] for desc in cursor.description]
+#             rows = cursor.fetchall()
             
-            # Convert to list of dictionaries
-            data = []
-            for row in rows:
-                data.append(dict(zip(columns, [str(item) if item is not None else None for item in row])))
+#             # Convert to list of dictionaries
+#             data = []
+#             for row in rows:
+#                 data.append(dict(zip(columns, [str(item) if item is not None else None for item in row])))
             
-            return {
-                "status": "success",
-                "table": input.table_name,
-                "columns": columns,
-                "row_count": len(data),
-                "data": data,
-                "query": query
-            }
+#             return {
+#                 "status": "success",
+#                 "table": input.table_name,
+#                 "columns": columns,
+#                 "row_count": len(data),
+#                 "data": data,
+#                 "query": query
+#             }
             
-    except ValueError as ve:
-        raise ToolError(str(ve))
-    except Exception as e:
-        logger.error(f"Error querying table {input.table_name}: {e}")
-        raise ToolError(f"Table query failed: {e}")
+#     except ValueError as ve:
+#         raise ToolError(str(ve))
+#     except Exception as e:
+#         logger.error(f"Error querying table {input.table_name}: {e}")
+#         raise ToolError(f"Table query failed: {e}")
 
 
 @mcp.tool()
